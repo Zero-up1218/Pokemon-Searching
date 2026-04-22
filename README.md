@@ -1,2 +1,1 @@
-# Pokemon-Searching
-Searching Pokemon Information
+# 宝可梦图鉴
