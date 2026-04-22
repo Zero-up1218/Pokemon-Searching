@@ -1,0 +1,84 @@
+<view class="container">
+
+  <!-- Search Bar -->
+  <view class="search-bar">
+    <view class="search-icon">🔍</view>
+    <input
+      class="search-input"
+      placeholder="搜索宝可梦名称或编号"
+      placeholder-class="search-placeholder"
+      value="{{searchQuery}}"
+      bindinput="onSearchInput"
+      bindconfirm="onSearchConfirm"
+      confirm-type="search"
+      adjust-position="{{false}}"
+    />
+    <view wx:if="{{searching || searchQuery}}" class="clear-btn" bindtap="onSearchClear">✕</view>
+    <view class="search-btn" bindtap="onSearchConfirm">搜索</view>
+  </view>
+
+  <!-- Loading State -->
+  <view wx:if="{{loading}}" class="state-view">
+    <view class="pokeball-loader">
+      <view class="pokeball">
+        <view class="pokeball-top"></view>
+        <view class="pokeball-line"></view>
+        <view class="pokeball-center"></view>
+        <view class="pokeball-bottom"></view>
+      </view>
+    </view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <!-- Empty State -->
+  <view wx:elif="{{pokemonList.length === 0}}" class="state-view">
+    <text class="state-icon">😢</text>
+    <text class="state-text">未找到该宝可梦</text>
+    <view class="retry-btn" bindtap="onSearchClear">返回列表</view>
+  </view>
+
+  <!-- Pokemon Grid -->
+  <view wx:else class="pokemon-grid">
+    <view
+      wx:for="{{pokemonList}}"
+      wx:key="id"
+      class="pokemon-card"
+      style="background: linear-gradient(145deg, {{item.typeColor}}dd 0%, {{item.typeColor}}88 100%)"
+      bindtap="goToDetail"
+      data-id="{{item.id}}"
+      hover-class="card-hover"
+      hover-stay-time="100"
+    >
+      <!-- Pokeball decoration -->
+      <view class="card-pokeball"></view>
+      <view class="card-content">
+        <view class="pokemon-id">{{item.formattedId}}</view>
+        <view class="pokemon-types">
+          <view
+            wx:for="{{item.types}}"
+            wx:key="name"
+            wx:for-item="type"
+            class="type-badge"
+            style="background-color: {{type.color}}"
+          >{{type.nameCN}}</view>
+        </view>
+        <view class="pokemon-name">{{item.name}}</view>
+      </view>
+      <image
+        class="pokemon-image"
+        src="{{item.image}}"
+        mode="aspectFit"
+        lazy-load="{{true}}"
+      />
+    </view>
+  </view>
+
+  <!-- Load More -->
+  <view wx:if="{{loadingMore}}" class="footer-state">
+    <text>加载更多...</text>
+  </view>
+  <view wx:elif="{{!hasMore && pokemonList.length > 0 && !searching}}" class="footer-state">
+    <text>— 已加载全部 —</text>
+  </view>
+
+</view>
