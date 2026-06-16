@@ -1,92 +1,137 @@
-// index.js
+// pages/sprite/index.js
+// Pokemon 详情页面 - 集成 API 数据
+
 import type from '../../data/type.js';
 import area from '../../data/area.js';
 import ability from '../../data/ability.js';
 import egggroup from '../../data/egggroup.js';
 import gendercode from '../../data/gendercode.js';
-//获取应用实例
+
 const app = getApp();
+
 Page({
   /**
    * 页面的初始数据
    */
   data: {
-    sprite: null
+    sprite: null,
+    isLoading: true,
+    error: null
   },
+
   onShareAppMessage: function (e) {
   },
+
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad: function (options) {
-    var item = app.globalObject.getItemById(options.id);
-    wx.setNavigationBarTitle({
-      title: item.cname
+    wx.showLoading({
+      mask: true,
+      title: '加载中...'
     });
-    this.formate(item);
-    // console.log(item);
-    this.setData({
-      sprite: item
-    });
+
+    const pokemonId = options.id;
+
+    // 优先使用 API 获取数据
+    app.globalObject.getItemByIdAsync(pokemonId)
+      .then((item) => {
+        wx.setNavigationBarTitle({
+          title: item.cname || item.name
+        });
+        this.formate(item);
+        this.setData({
+          sprite: item,
+          isLoading: false,
+          error: null
+        });
+        wx.hideLoading();
+      })
+      .catch((err) => {
+        console.error('Failed to load pokemon:', err);
+        // 降级到本地数据
+        const item = app.globalObject.getItemById(pokemonId);
+        if (item) {
+          wx.setNavigationBarTitle({
+            title: item.cname
+          });
+          this.formate(item);
+          this.setData({
+            sprite: item,
+            isLoading: false,
+            error: null
+          });
+        } else {
+          this.setData({
+            isLoading: false,
+            error: 'Pokemon not found'
+          });
+        }
+        wx.hideLoading();
+      });
   },
+
   formate: function (item) {
+    if (!item) return;
+
     item.showname = item.cname + (item.form || '');
-    item.showid = item.id.replace(/\D/, '');
+    item.showid = item.id.replace(/\D/g, '').padStart(3, '0');
     item.ctype = [];
     item.abilityList = [];
     item.carea = [];
     item.ceggGroup = [];
     item.cevolutions = [];
+
     // 类型
-    for (let i = 0, l = item.type.length; i < l; i++) {
-      item.ctype.push(type.getCname(item.type[i]));
-    }
-    // 地区
-    for (let i = 0, l = item.area.length; i < l; i++) {
-      item.carea.push(area.getCname(item.area[i]));
-    }
-    // 蛋组
-    for (let i = 0, l = item.eggGroup.length; i < l; i++) {
-      item.ceggGroup.push(egggroup.getCname(item.eggGroup[i]));
-    }
-    // 性别比
-    item.genderObj = gendercode.getText(item.gendercode);
-    var addStatsTxt = '';
-    var addStats = item.addStats;
-    if (addStats.HP > 0) {
-      addStatsTxt += 'HP+' + addStats.HP + ' ';
-    }
-    if (addStats.ATK > 0) {
-      addStatsTxt += '攻击+' + addStats.ATK + ' ';
-    }
-    if (addStats.DEF > 0) {
-      addStatsTxt += '防御+' + addStats.DEF + ' ';
-    }
-    if (addStats.SPA > 0) {
-      addStatsTxt += '特攻+' + addStats.SPA + ' ';
-    }
-    if (addStats.SPD > 0) {
-      addStatsTxt += '特防+' + addStats.SPD + ' ';
-    }
-    if (addStats.SPE > 0) {
-      addStatsTxt += '速度+' + addStats.SPE + ' ';
-    }
-    item.addStatsTxt = addStatsTxt;
-    // 特性
-    var abilitysize = item.ability.length;
-    for (let i = 0, l = abilitysize; i < l; i++) {
-      var abobj = ability.getAbility(item.ability[i]);
-      if (abilitysize > 1 && i == abilitysize - 1) {
-        abobj.showname = abobj.cname + '（隐藏特性）';
-      } else {
-        abobj.showname = abobj.cname;
+    if (item.type && Array.isArray(item.type)) {
+      for (let i = 0, l = item.type.length; i < l; i++) {
+        const typeInfo = type.getCname(item.type[i]);
+        item.ctype.push(typeInfo || item.type[i]);
       }
-      item.abilityList.push(abobj);
     }
-    this.getEvolutions(item, item.evolutions);
+
+    // 地区
+    if (item.area && Array.isArray(item.area)) {
+      for (let i = 0, l = item.area.length; i < l; i++) {
+        const areaInfo = area.getCname(item.area[i]);
+        item.carea.push(areaInfo || item.area[i]);
+      }
+    }
+
+    // 蛋组
+    if (item.eggGroup && Array.isArray(item.eggGroup)) {
+      for (let i = 0, l = item.eggGroup.length; i < l; i++) {
+        const egggroupInfo = egggroup.getCname(item.eggGroup[i]);
+        item.ceggGroup.push(egggroupInfo || item.eggGroup[i]);
+      }
+    }
+
+    // 性别比
+    if (item.gendercode) {
+      item.genderObj = gendercode.getText(item.gendercode);
+    }
+
+    // 特性
+    if (item.ability && Array.isArray(item.ability)) {
+      var abilitysize = item.ability.length;
+      for (let i = 0, l = abilitysize; i < l; i++) {
+        var abobj = ability.getAbility(item.ability[i]);
+        if (abilitysize > 1 && i == abilitysize - 1) {
+          abobj.showname = abobj.cname + '（隐藏特性）';
+        } else {
+          abobj.showname = abobj.cname;
+        }
+        item.abilityList.push(abobj);
+      }
+    }
+
+    // 进化链
+    if (item.evolutions) {
+      this.getEvolutions(item, item.evolutions);
+    }
   },
+
   toResist: function (event) {
-    // console.log(event);
     var id = event.currentTarget.dataset.id;
     if (id) {
       wx.navigateTo({
@@ -94,8 +139,8 @@ Page({
       });
     }
   },
+
   toAbilityDetail: function (event) {
-    // console.log(event);
     var id = event.currentTarget.dataset.id;
     if (id) {
       wx.navigateTo({
@@ -103,13 +148,8 @@ Page({
       });
     }
   },
+
   tapSprite: function (event) {
-    // var index = event.currentTarget.dataset.index + '';
-    // if (parseInt(index) > -1 && index != (this.data.sprite.index + '')) {
-    //   wx.navigateTo({
-    //     url: '/pages/sprite/index?index=' + index
-    //   });
-    // }
     var id = event.currentTarget.dataset.id;
     if (id && id != this.data.sprite.id) {
       wx.redirectTo({
@@ -117,13 +157,20 @@ Page({
       });
     }
   },
+
   getEvolutions: function (item, evolutions) {
+    if (!evolutions || !Array.isArray(evolutions)) {
+      item.evolutmax = [];
+      return;
+    }
+
     var step1 = evolutions[0],
       step2 = evolutions[1],
       step3 = evolutions[2],
       step1List = [],
       step2List = [],
       step3List = [];
+
     if (step3) {
       for (var i = 0; i <= 7; i++) {
         var idkey = 'id' + (i ? i : '');
@@ -150,6 +197,7 @@ Page({
         step3List.push(e);
       }
     }
+
     if (step2) {
       for (var i = 0; i <= 7; i++) {
         var idkey = 'id' + (i ? i : '');
@@ -176,6 +224,7 @@ Page({
         step2List.push(e);
       }
     }
+
     if (step1) {
       for (var i = 0; i <= 7; i++) {
         var idkey = 'id' + (i ? i : '');
@@ -201,6 +250,7 @@ Page({
         step1List.push(e);
       }
     }
+
     item.evolutmax = [];
     for (var i = 0; i <= 7; i++) {
       var s1 = step1List[i] || { id: undefined, className: 'empty' };
@@ -214,6 +264,5 @@ Page({
         item.evolutmax.push(list);
       }
     }
-    // console.log(item);
   }
 })
